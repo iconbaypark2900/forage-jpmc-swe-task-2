@@ -4,47 +4,68 @@ import Graph from './Graph';
 import './App.css';
 
 /**
- * State declaration for <App />
+ * Interface for the component state
+ * - data: Array of ServerRespond objects to hold data from the server.
+ * - showGraph: Boolean to control the visibility of the Graph component.
  */
 interface IState {
   data: ServerRespond[],
+  showGraph: boolean,
 }
 
 /**
- * The parent element of the react app.
- * It renders title, button and Graph react element.
+ * App component serves as the parent element of the React application.
+ * It is responsible for fetching data from the server, managing application state,
+ * and rendering the Graph component conditionally based on state.
  */
 class App extends Component<{}, IState> {
   constructor(props: {}) {
     super(props);
 
+    // Initial state setup
     this.state = {
-      // data saves the server responds.
-      // We use this state to parse data down to the child element (Graph) as element property
-      data: [],
+      data: [], // Initializes as an empty array, to be filled with server data.
+      showGraph: false, // Initially, do not show the graph until data is fetched.
     };
   }
 
   /**
-   * Render Graph react component with state.data parse as property data
+   * Renders the Graph component if showGraph state is true.
+   * Passes the current state data to the Graph component as props.
    */
   renderGraph() {
-    return (<Graph data={this.state.data}/>)
+    if (this.state.showGraph) {
+      return (<Graph data={this.state.data}/>);
+    }
   }
 
   /**
-   * Get new data from server and update the state with the new data
+   * Fetches new data from the server at regular intervals and updates the component's state.
+   * Sets up an interval to call DataStreamer.getData() every 100ms, updates state with new data,
+   * and ensures the graph is shown by setting showGraph to true.
+   * Stops fetching data after 1000 iterations to prevent unnecessary network requests.
    */
   getDataFromServer() {
-    DataStreamer.getData((serverResponds: ServerRespond[]) => {
-      // Update the state by creating a new array of data that consists of
-      // Previous data in the state and the new data from server
-      this.setState({ data: [...this.state.data, ...serverResponds] });
-    });
+    let x = 0; // Counter to track the number of data fetches.
+    const interval = setInterval(() => {
+      DataStreamer.getData((serverResponds: ServerRespond[]) => {
+        // Update state with new data and set showGraph to true to display the graph.
+        this.setState({
+          data: serverResponds,
+          showGraph: true,
+        });
+      });
+      x++;
+      if (x > 1000) { // After 1000 fetches, stop the interval to prevent infinite fetching.
+        clearInterval(interval);
+      }
+    }, 100); // Fetch data every 100 milliseconds.
   }
 
   /**
-   * Render the App react component
+   * Renders the component UI.
+   * Includes a button to start data streaming and a container for the Graph component.
+   * The Graph component is conditionally rendered based on the showGraph state.
    */
   render() {
     return (
@@ -54,11 +75,6 @@ class App extends Component<{}, IState> {
         </header>
         <div className="App-content">
           <button className="btn btn-primary Stream-button"
-            // when button is click, our react app tries to request
-            // new data from the server.
-            // As part of your task, update the getDataFromServer() function
-            // to keep requesting the data every 100ms until the app is closed
-            // or the server does not return anymore data.
             onClick={() => {this.getDataFromServer()}}>
             Start Streaming Data
           </button>
@@ -67,8 +83,9 @@ class App extends Component<{}, IState> {
           </div>
         </div>
       </div>
-    )
+    );
   }
 }
 
 export default App;
+

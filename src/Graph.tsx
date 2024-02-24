@@ -5,35 +5,38 @@ import './Graph.css';
 
 /**
  * Props declaration for <Graph />
+ * - data: Array of ServerRespond objects to provide the data for the Perspective viewer.
  */
 interface IProps {
   data: ServerRespond[],
 }
 
 /**
- * Perspective library adds load to HTMLElement prototype.
- * This interface acts as a wrapper for Typescript compiler.
+ * Extends HTMLElement to include the load method specific to PerspectiveViewer.
  */
-interface PerspectiveViewerElement {
+interface PerspectiveViewerElement extends HTMLElement{
   load: (table: Table) => void,
 }
 
 /**
- * React component that renders Perspective based on data
- * parsed from its parent through data property.
+ * Graph component uses Perspective to visualize data received from its parent.
+ * It creates a Perspective viewer element and updates it with new data when received.
  */
 class Graph extends Component<IProps, {}> {
-  // Perspective table
+  // Perspective table instance
   table: Table | undefined;
 
   render() {
+    // Render a Perspective viewer element. Actual configuration and data loading
+    // are done in componentDidMount and componentDidUpdate.
     return React.createElement('perspective-viewer');
   }
 
   componentDidMount() {
-    // Get element to attach the table from the DOM.
-    const elem: PerspectiveViewerElement = document.getElementsByTagName('perspective-viewer')[0] as unknown as PerspectiveViewerElement;
+    // This method is called after the component output has been rendered to the DOM.
+    const elem = document.getElementsByTagName('perspective-viewer')[0] as unknown as PerspectiveViewerElement;
 
+    // Define the schema for the Perspective table based on the expected data shape.
     const schema = {
       stock: 'string',
       top_ask_price: 'float',
@@ -41,24 +44,35 @@ class Graph extends Component<IProps, {}> {
       timestamp: 'date',
     };
 
+    // Initialize the Perspective worker and table if available.
     if (window.perspective && window.perspective.worker()) {
       this.table = window.perspective.worker().table(schema);
     }
-    if (this.table) {
-      // Load the `table` in the `<perspective-viewer>` DOM reference.
 
-      // Add more Perspective configurations here.
+    if (this.table && elem) {
+      // Load the Perspective table into the viewer element.
       elem.load(this.table);
+
+      // Configure the Perspective viewer attributes.
+      elem.setAttribute('view', 'y_line');
+      elem.setAttribute('column-pivots', '["stock"]');
+      elem.setAttribute('row-pivots', '["timestamp"]');
+      elem.setAttribute('columns', '["top_ask_price"]');
+      elem.setAttribute('aggregates', JSON.stringify({
+        stock: "distinct count",
+        top_ask_price: "avg",
+        top_bid_price: "avg",
+        timestamp: "distinct count"
+      }));
     }
   }
 
   componentDidUpdate() {
-    // Everytime the data props is updated, insert the data into Perspective table
+    // Called whenever the component's props or state changes.
+    // Updates the Perspective table with new data.
     if (this.table) {
-      // As part of the task, you need to fix the way we update the data props to
-      // avoid inserting duplicated entries into Perspective table again.
       this.table.update(this.props.data.map((el: any) => {
-        // Format the data from ServerRespond to the schema
+        // Transform the data to match the Perspective schema.
         return {
           stock: el.stock,
           top_ask_price: el.top_ask && el.top_ask.price || 0,
